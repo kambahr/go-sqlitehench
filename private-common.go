@@ -73,8 +73,6 @@ func getDataMap(sqlQuery string, db *sql.DB) ([]map[string]interface{}, error) {
 
 	var mRet []map[string]interface{}
 
-	//sqlQuery = fixSQLQuery(sqlQuery)
-
 	rows, err := db.Query(sqlQuery)
 	if err != nil {
 		return nil, err

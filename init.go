@@ -44,18 +44,13 @@ func NewDBAccess(d DBAccess) *DBAccess {
 		d.driverName = "sqlite3"
 	}
 
-	if len(d.PRAGMA) > 0 {
-		// Fix the PRAGMA text
-		for i := 0; i < len(d.PRAGMA); i++ {
-			right := d.PRAGMA[i][6:]
-			right = strings.ReplaceAll(right, " ", "")
-			d.PRAGMA[i] = fmt.Sprintf("PRAGMA %s", right)
-		}
-		for i := 0; i < len(d.PRAGMA); i++ {
-			if !strings.Contains(d.PRAGMA[i], "PRAGMA auto_vacuum") {
-				d.ShrinkDatabaseFiles = true
-				break
-			}
+	d.PRAGMA = fixPragmaTextAndOrder(d.PRAGMA)
+
+	// Shring databases?
+	for i := 0; i < len(d.PRAGMA); i++ {
+		if !strings.Contains(strings.ToUpper(d.PRAGMA[i]), strings.ToUpper("PRAGMA auto_vacuum")) {
+			d.ShrinkDatabaseFiles = true
+			break
 		}
 	}
 
@@ -70,4 +65,60 @@ func NewDBAccess(d DBAccess) *DBAccess {
 	d.Remote = &IRemoteSQLiteHndlr{&rmt}
 
 	return &d
+}
+
+// fixPragmaTextAndOrder edits the pragma entries:
+// smicolon at the end, wall journal_mode to accompany
+// with checkpoint and also some formatting mistakes.
+func fixPragmaTextAndOrder(pragArry []string) []string {
+
+	if len(pragArry) == 0 {
+		return pragArry
+	}
+
+	//Fix the PRAGMA text
+	for i := 0; i < len(pragArry); i++ {
+		pragArry[i] = strings.Trim(pragArry[i], " ")
+		// take out extra spaces
+		for {
+			if !strings.Contains(pragArry[i], "  ") {
+				break
+			}
+			pragArry[i] = strings.ReplaceAll(pragArry[i], "  ", " ")
+		}
+		pragArry[i] = strings.ToLower(pragArry[i])
+		if !strings.HasSuffix(pragArry[i], ";") {
+			pragArry[i] = fmt.Sprintf("%s;", pragArry[i])
+		}
+		if !strings.Contains(pragArry[i], "pragma ") {
+			pragArry[i] = strings.ReplaceAll(pragArry[i], "pragma", "pragma ")
+		}
+	}
+
+	// if set to wall, make sure pragma wal_checkpoint(passive) is included
+	//pragma wal_checkpoint(passive);
+	wallExists := false
+	for i := 0; i < len(pragArry); i++ {
+		if strings.Contains(pragArry[i], "journal_mode = wall") {
+			wallExists = true
+			break
+		}
+	}
+	if wallExists {
+		// the wall and the checkpoint pragma statements
+		// have to be in consecutive order.
+		var s []string
+		s = append(s, "pragma journal_mode = wall;")
+		s = append(s, "pragma wal_checkpoint(passive);")
+
+		for i := 0; i < len(pragArry); i++ {
+			if !strings.Contains(pragArry[i], "wal_checkpoint") && !strings.Contains(pragArry[i], "journal_mode = wall") {
+				s = append(s, pragArry[i])
+				break
+			}
+		}
+		pragArry = s
+	}
+
+	return pragArry
 }
