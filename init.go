@@ -46,7 +46,7 @@ func NewDBAccess(d DBAccess) *DBAccess {
 
 	d.PRAGMA = fixPragmaTextAndOrder(d.PRAGMA)
 
-	// Shring databases?
+	// Shrik databases?
 	for i := 0; i < len(d.PRAGMA); i++ {
 		if !strings.Contains(strings.ToUpper(d.PRAGMA[i]), strings.ToUpper("PRAGMA auto_vacuum")) {
 			d.ShrinkDatabaseFiles = true
@@ -93,13 +93,13 @@ func fixPragmaTextAndOrder(pragArry []string) []string {
 		if !strings.Contains(pragArry[i], "pragma ") {
 			pragArry[i] = strings.ReplaceAll(pragArry[i], "pragma", "pragma ")
 		}
+		pragArry[i] = strings.ReplaceAll(pragArry[i], "wall", "wal")
 	}
 
-	// if set to wall, make sure pragma wal_checkpoint(passive) is included
-	//pragma wal_checkpoint(passive);
+	// if set to wal, make sure pragma wal_checkpoint(passive) is included
 	wallExists := false
 	for i := 0; i < len(pragArry); i++ {
-		if strings.Contains(pragArry[i], "journal_mode = wall") {
+		if strings.Contains(pragArry[i], "journal_mode = wal") {
 			wallExists = true
 			break
 		}
@@ -112,7 +112,7 @@ func fixPragmaTextAndOrder(pragArry []string) []string {
 		s = append(s, "pragma wal_checkpoint(passive);")
 
 		for i := 0; i < len(pragArry); i++ {
-			if !strings.Contains(pragArry[i], "wal_checkpoint") && !strings.Contains(pragArry[i], "journal_mode = wall") {
+			if !strings.Contains(pragArry[i], "wal_checkpoint") && !strings.Contains(pragArry[i], "journal_mode = wal") {
 				s = append(s, pragArry[i])
 				break
 			}

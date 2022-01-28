@@ -19,8 +19,7 @@ func (d *DBAccess) shrinkAllDB() {
 
 lblAgain:
 
-	// UNDONE: increase this time for release
-	time.Sleep(time.Minute)
+	time.Sleep(5 * time.Minute)
 
 	if len(d.ShrinkWatchList) == 0 {
 		// No activity.
@@ -48,7 +47,7 @@ lblForeAgain:
 		}
 		t := fi.ModTime()
 		isBefore := t.Before(time.Now().Add(-15 * time.Minute))
-		// has to not have activity for the last 5 minutes
+		// has to not have activity for the last 15 minutes
 		if !isBefore {
 			continue
 		}
