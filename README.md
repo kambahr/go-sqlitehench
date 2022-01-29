@@ -46,7 +46,7 @@ The WAL mode is proportionately faster than the default journal mode, however, c
 ### Shrinking database files
 Shrinking is done automatically, when ShrinkDatabaseFiles = true; so there is no need to *shrink* a db file explicitly - as 
 every database file that interacts with the package is added to a *watchlist*. 
-Each file is shrunk accordingly within a short period of time. 
+Each db file is shrunk accordingly within a short period of time. 
 If a db file is not used for more than ~one hour, it will be excluded from the watchlist.
 Note that if <a href="https://sqlite.org/pragma.html#pragma_auto_vacuum">PRAGMA auto_vacuum</a> is set, the shrink-daemon will not be started.
 
@@ -60,7 +60,7 @@ import (
 	// ... 
 )
 	var pragma []string = []string{
-		"PRAGMA journal_mode = WALL",
+		"PRAGMA journal_mode = WAL",
 		"PRAGMA temp_store = MEMORY",
 		"PRAGMA synchronous = OFF",
 	}

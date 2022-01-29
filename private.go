@@ -20,8 +20,8 @@ func (d *DBAccess) itemExists(dbFilePath string) bool {
 	return false
 }
 
-// removeItem removes a db file path from the d.ShrinkWatchList list.
-func (d *DBAccess) removeItem(i int) {
+// removeItemFromShrinkWatchList removes a db file path from the d.ShrinkWatchList list.
+func (d *DBAccess) removeItemFromShrinkWatchList(i int) {
 
 	if len(d.ShrinkWatchList) == 0 || i >= len(d.ShrinkWatchList) {
 		return

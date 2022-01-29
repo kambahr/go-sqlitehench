@@ -93,13 +93,12 @@ func fixPragmaTextAndOrder(pragArry []string) []string {
 		if !strings.Contains(pragArry[i], "pragma ") {
 			pragArry[i] = strings.ReplaceAll(pragArry[i], "pragma", "pragma ")
 		}
-		pragArry[i] = strings.ReplaceAll(pragArry[i], "wall", "wal")
 	}
 
 	// if set to wal, make sure pragma wal_checkpoint(passive) is included
 	wallExists := false
 	for i := 0; i < len(pragArry); i++ {
-		if strings.Contains(pragArry[i], "journal_mode = wal") {
+		if strings.Contains(pragArry[i], "journal_mode = wal") || strings.Contains(pragArry[i], "journal_mode=wal") {
 			wallExists = true
 			break
 		}
@@ -108,11 +107,12 @@ func fixPragmaTextAndOrder(pragArry []string) []string {
 		// the wall and the checkpoint pragma statements
 		// have to be in consecutive order.
 		var s []string
-		s = append(s, "pragma journal_mode = wall;")
+		s = append(s, "pragma journal_mode = wal;")
 		s = append(s, "pragma wal_checkpoint(passive);")
 
 		for i := 0; i < len(pragArry); i++ {
-			if !strings.Contains(pragArry[i], "wal_checkpoint") && !strings.Contains(pragArry[i], "journal_mode = wal") {
+			if !strings.Contains(pragArry[i], "wal_checkpoint") &&
+				!(strings.Contains(pragArry[i], "journal_mode = wal") || strings.Contains(pragArry[i], "journal_mode=wal")) {
 				s = append(s, pragArry[i])
 				break
 			}

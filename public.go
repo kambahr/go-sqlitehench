@@ -172,7 +172,9 @@ func (d *DBAccess) ExecuteNonQueryNoTx(sqlStatement string, dbFilePath string) (
 		db.Close()
 		return -1, err
 	}
+
 	db.Close()
+
 	return rowsAffected, nil
 }
 
@@ -186,6 +188,8 @@ func (d *DBAccess) ExecuteNonQueryPointToDB(sqlStatement string, db *sql.DB) (in
 
 	return rowsAffected, err
 }
+
+// getTableNameFromSQLQuery parses the tables name out of an SQL statement.
 func (d *DBAccess) getTableNameFromSQLQuery(sqlQuery string) string {
 	sqlQueryLower := strings.ToLower(sqlQuery)
 	x := strings.Split(sqlQueryLower, " ")
