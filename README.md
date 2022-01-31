@@ -9,7 +9,7 @@ This package uses the SQLite driver written by <a href="https://github.com/mattn
 Most functions come in two folds:  *keeping the db open*, or *close it*, after each write operation.
 To avoid file corruption or lingering locks (where a db lock persists even after the db is 'closed'), the database file can be closed after each operation. This may not be suitable for every scenario (i.e. while importing large number of records, shared env.,...).
 
-Generally spkeaing, you would not have to *close* an SQLite database after each operation.
+In most cases, you would not have to *close* an SQLite database after each operation.
 However, in a high volume situation, a database *can* get locked (due to SQLite's single-write mechanism);
 and (in some situations) may even get corrupted (i.e. if journal file(s) get out-of-sync)...
 

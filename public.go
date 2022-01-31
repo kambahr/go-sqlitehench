@@ -13,7 +13,7 @@ import (
 
 	// Copyright (c) 2014 Yasuhiro Matsumoto
 	// MIT License can be found on:
-	// https://github.com/mattn/go-sqlite3/blob/master/LICENSEFF
+	// https://github.com/mattn/go-sqlite3/blob/master/LICENSE
 	_ "github.com/mattn/go-sqlite3"
 )
 
