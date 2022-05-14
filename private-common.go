@@ -3,6 +3,7 @@ package sqlitehench
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 )
 
@@ -30,6 +31,12 @@ func executeScalare(sqlStatement string, db *sql.DB) (interface{}, error) {
 }
 
 func executeNonQuery(sqlStatement string, db *sql.DB) (int64, error) {
+
+	// this is a rough estimate (https://sqlite.org/limits.html),
+	// but it'd be good to prevent this to go thru.
+	if len(sqlStatement) > 1000000000 {
+		return -1, errors.New("query length exceeded max length of 1000000000 bytes")
+	}
 
 	var err error
 

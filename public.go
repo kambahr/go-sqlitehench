@@ -2,6 +2,7 @@
 package sqlitehench
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -121,6 +122,13 @@ func (d *DBAccess) ExecuteScalarePointToDB(sqlStatement string, db *sql.DB) (int
 	return item, err
 }
 
+func (d *DBAccess) fixQuery(sqlx string) string {
+	sqlx = strings.ReplaceAll(sqlx, "\n", " ")
+	sqlx = strings.ReplaceAll(sqlx, "\t", " ")
+
+	return sqlx
+}
+
 // ExecuteNonQuery inserts data. It uses a transaction context so that
 // the operation is rolled back on failures and then closes the database.
 // Closing the databases has the following advantages for an SQLite database:
@@ -141,7 +149,40 @@ func (d *DBAccess) ExecuteNonQuery(sqlStatement string, dbFilePath string) (int6
 		return -1, err
 	}
 
-	rowsAffected, err := executeNonQuery(sqlStatement, db)
+	sqlStatement = d.fixQuery(sqlStatement)
+
+	// this is a rough estimate (https://sqlite.org/limits.html),
+	// but it'd be good to prevent this to go thru.
+	if len(sqlStatement) > 1000000000 {
+		db.Close()
+		return -1, errors.New("query length exceeded max length of 1000000000 bytes")
+	}
+
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		db.Close()
+		return -1, err
+	}
+
+	result, err := tx.ExecContext(ctx, sqlStatement)
+	if err != nil {
+		tx.Rollback()
+		db.Close()
+		return -1, err
+	}
+
+	var rowsAffected int64 = -1
+
+	if result != nil {
+		rowsAffected, err = result.RowsAffected()
+		if err != nil {
+			tx.Rollback()
+			db.Close()
+			return -1, err
+		}
+	}
+	tx.Commit()
 
 	db.Close()
 
@@ -210,7 +251,9 @@ func (d *DBAccess) getTableNameFromSQLQuery(sqlQuery string) string {
 				if strings.HasSuffix(v, ";") {
 					v = v[:len(v)-1]
 				}
-				return strings.Title(v)
+
+				tblName := strings.TrimSpace(strings.Split(v, "\n")[0])
+				return tblName
 			}
 		}
 	}
@@ -443,6 +486,40 @@ func (dc *DBAccess) CloneDatabase(srcFilePath string, destFilePath string, notif
 	}
 
 	return nil
+}
+
+// GetDataMapPage returns a map of query by page.
+func (d *DBAccess) GetDataMapPage(sqlQuery string, pageNo int, pageSize int, dbFilePath string) ([]map[string]interface{}, error) {
+
+	tblName := d.getTableNameFromSQLQuery(sqlQuery)
+
+	sqlx := fmt.Sprintf("select count(_rowid_) from %s", tblName)
+	m, err := d.ExecuteScalare(sqlx, dbFilePath)
+	if err != nil {
+		return nil, err
+	}
+	recordCount := int(m.(int64))
+
+	if pageNo < 1 {
+		pageNo = 1
+	}
+
+	if pageSize < 1 {
+		pageSize = 1
+	}
+
+	_, offset, _ := d.GetPageOffset(recordCount, pageSize, pageNo)
+
+	// pageSize: how many records to return
+	// offset: from what position in the data-set
+	sqlx = fmt.Sprintf("%s limit %d offset %d", sqlQuery, pageSize, offset)
+	mx, err := d.GetDataMap(sqlx, dbFilePath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return mx, nil
 }
 
 // GetDataMap gets a selected range of table in form of rows and columns.

@@ -51,7 +51,6 @@ func Encrypt(plainData []byte, passphrase string) ([]byte, error) {
 	cipherData = gcm.Seal(nonceBytes, nonceBytes, plainData, nil)
 
 	return cipherData, nil
-
 }
 
 // Encrypt encryptes a file using the AES algorythm.
