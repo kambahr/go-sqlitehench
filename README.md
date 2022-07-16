@@ -53,33 +53,39 @@ Note that if <a href="https://sqlite.org/pragma.html#pragma_auto_vacuum">PRAGMA 
 ### Usage Example
 
 ```go
-// ...
+package main
+
 import (
-	"github.com/kambahr/go-collections"
+	"fmt"
+
 	"github.com/kambahr/go-sqlitehench"
-	// ... 
 )
-	var pragma []string = []string{
-		"PRAGMA journal_mode = WAL",
-		"PRAGMA temp_store = MEMORY",
-		"PRAGMA synchronous = OFF",
-	}
+
+var pragma []string = []string{
+	"PRAGMA journal_mode = WAL",
+	"PRAGMA temp_store = MEMORY",
+	"PRAGMA synchronous = OFF",
+}
+
+func main() {
 	mysqlite := sqlitehench.NewDBAccess(
-	   sqlitehench.DBAccess{			
-	      ShrinkDatabaseFiles: false,
-	      PRAGMA:              pragma,
-	   })
+		sqlitehench.DBAccess{
+			ShrinkDatabaseFiles: false,
+			PRAGMA:              pragma,
+		})
 	dbPathSrc := "<path to the source SQLite database>"
 	dbPathDest := "<path to the destination SQLite database>"
 
-	mysqlite.CloneDatabase(dbPathSrc, dbPathDest)
-    // ...
+	mysqlite.CloneDatabase(dbPathSrc, dbPathDest, notify)
 
-    sqlx := `select <columns> from <table name> limit 20000 offset 1000`
-    mytbl, _ := mysqlite.GetDataTable(sqlx, dbPathSrc)
+	sqlx := `select <columns> from <table name> limit 20000 offset 1000`
+	mytbl, _ := mysqlite.GetDataTable(sqlx, dbPathSrc)
 
-    mysqlite.BulkInsert(mytbl, dbPathSrc)
+	mysqlite.BulkInsert(mytbl, dbPathSrc, notify)
 
-    //...
+}
+func notify(status string) {
+	fmt.Println(status)
+}
 
 ```

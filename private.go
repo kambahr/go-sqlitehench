@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -32,6 +33,54 @@ func (d *DBAccess) removeItemFromShrinkWatchList(i int) {
 	}
 
 	d.ShrinkWatchList = d.ShrinkWatchList[:len(d.ShrinkWatchList)-1]
+}
+
+// convertStringToTime --
+// dateTimeString => 2020-06-22T10:20:38
+// on error it returns: 0001-01-01T00:00:00.000Z
+func convertStringToTime(dateTimeString string) (time.Time, error) {
+
+	var s string
+
+	dateTimeString = strings.Trim(dateTimeString, " ")
+
+	if strings.Contains(dateTimeString, " ") {
+		// Missing T
+		v := strings.Split(dateTimeString, " ")
+		v[1] = fmt.Sprintf("T%s", v[1])
+		dateTimeString = strings.Join(v, "")
+	}
+
+	tEmpty, err := time.Parse(time.RFC3339, "0001-01-01T00:00:00.000Z")
+	if err != nil {
+		return tEmpty, err
+	}
+	s = strings.Replace(dateTimeString, " ", "T", 1)
+	v := strings.Split(dateTimeString, ".")
+
+	if len(v) > 1 {
+		z := ""
+		if len(v[1]) >= 4 {
+			z = v[1][:3]
+		} else {
+			z = "000"
+		}
+		// check again
+		if len(z) < 3 {
+			z = "000"
+		}
+		s = fmt.Sprintf("%s.%sZ", v[0], z)
+	} else {
+		s = fmt.Sprintf("%s.000Z", s)
+	}
+
+	t, err := time.Parse(time.RFC3339, s)
+
+	if err != nil {
+		return tEmpty, err
+	}
+
+	return t, err
 }
 
 func fileOrDirExists(path string) bool {
@@ -78,6 +127,16 @@ func removeElmFrmArryString(v []string, e string) []string {
 	}
 	return r
 }
+
+func arryElmExists(arry []string, item string) bool {
+	for i := 0; i < len(arry); i++ {
+		if arry[i] == item {
+			return true
+		}
+	}
+	return false
+}
+
 func removeElmFrmArry(v []interface{}, e interface{}) []interface{} {
 	var r []interface{}
 	count := len(v)

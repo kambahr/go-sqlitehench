@@ -286,9 +286,10 @@ func (d *DBAccess) validateInsertEntry(t *collc.Table, dbFilePath string) error 
 
 	tblFound := false
 	cols := tMaster.Cols.Get()
-	for i := 0; i < len(tMaster.Rows.GetArray()); i++ {
+	rowArry := tMaster.Rows.GetRows()
+	for i := 0; i < len(rowArry); i++ {
 		for j := 0; j < len(cols); j++ {
-			tblName := tMaster.Rows.GetArray()[i][j]
+			tblName := rowArry[i][cols[j].Name]
 			if tblName == nil {
 				continue
 			}
@@ -325,7 +326,9 @@ func valueExistsInArry(arry []collc.Column, e string, ignoreCase bool) bool {
 }
 
 // BulkInsert inserts a DataTable into a database.
-func (dc *DBAccess) BulkInsert(dtSrc *collc.Table, dbFilePath string, notify func(status string)) error {
+func (dc *DBAccess) BulkInsert(dtSrc *collc.Table, dbFilePath string /*fast bool,*/, notify func(status string)) error {
+
+	var err error
 
 	// Make a new instance for this.
 	var pragma []string = []string{
@@ -339,20 +342,22 @@ func (dc *DBAccess) BulkInsert(dtSrc *collc.Table, dbFilePath string, notify fun
 		PRAGMA:              pragma,
 	})
 
-	if !fileOrDirExists(dbFilePath) {
-		return errors.New("database file does not exist")
+	_, err = d.CreateNewDatabase(dtSrc, dbFilePath)
+	if err != nil {
+		return err
 	}
 
-	pageSize := 30
+	// anything more than one will acutally slow thing down!
+	pageSize := 1
 
-	recCnt := dtSrc.Rows.Count()
+	tblSrcRecordCount := dtSrc.Rows.Count()
 
-	totalPages := recCnt / pageSize
-	if recCnt%pageSize != 0 {
+	totalPages := tblSrcRecordCount / pageSize
+	if tblSrcRecordCount%pageSize != 0 {
 		totalPages++
 	}
 
-	if recCnt < 1 {
+	if tblSrcRecordCount < 1 {
 		return errors.New("source data-table has no rows")
 	}
 
@@ -360,35 +365,48 @@ func (dc *DBAccess) BulkInsert(dtSrc *collc.Table, dbFilePath string, notify fun
 	to := pageSize - 1
 	tstart := time.Now()
 
-	var allRowsAffected int64
-	for i := 0; i < recCnt; i++ {
-		if to > recCnt {
-			to = recCnt
+	var allRowsAffected, rowsAffected int64
+	fmtTblRecCnt := formatNumber(int64(tblSrcRecordCount))
+
+	for i := 0; i < tblSrcRecordCount; i++ {
+		if to > tblSrcRecordCount {
+			to = tblSrcRecordCount
 		}
-		dt, err := d.GetDataTableRange(dtSrc, from, to)
+
+		var coll = collc.NewCollection()
+		dtDest, err := coll.Table.Create(dtSrc.Name)
 		if err != nil {
 			return err
 		}
-		rowsAffected, err := d.InsertDataTable(dt, dbFilePath)
+
+		err = d.GetDataTableRange(dtSrc, dtDest, from, to)
+		if err != nil {
+			return err
+		}
+		rowsAffected, err = d.InsertDataTable(dtDest, dbFilePath, nil)
 		if err != nil {
 			if err.Error() == Err_NoRowsFound {
 				return nil
 			}
 			return err
 		}
+
 		from += pageSize
 		to = from + (pageSize - 1)
 
 		if notify != nil {
 			allRowsAffected += rowsAffected
-			msg := fmt.Sprintf("copied => rows: %s of %s, elapsed: %v",
-				formatNumber(allRowsAffected), formatNumber(int64(recCnt)), durationToString(time.Since(tstart)))
-
-			go notify(msg)
+			go createNotifyMsg(allRowsAffected, fmtTblRecCnt, tstart, notify)
 		}
 	}
 
 	return nil
+}
+func createNotifyMsg(allRowsAffected int64, fmtTblRecCnt string, tstart time.Time, notify func(status string)) {
+	msg := fmt.Sprintf("copied => rows: %s of %s, elapsed: %v",
+		formatNumber(allRowsAffected), fmtTblRecCnt, durationToString(time.Since(tstart)))
+
+	notify(msg)
 }
 
 // CloneDatabase copies one database to the other.
@@ -467,7 +485,7 @@ func (dc *DBAccess) CloneDatabase(srcFilePath string, destFilePath string, notif
 			if err != nil {
 				return err
 			}
-			rowsAffected, err := d.InsertDataTable(dt, destFilePath)
+			rowsAffected, err := d.InsertDataTable(dt, destFilePath, nil)
 			if err != nil {
 				return err
 			}
