@@ -28,7 +28,9 @@ func (d *DBAccess) shrinkAllDB() {
 			}
 
 			// Shrink the database.
-			d.ShrinkDB(d.ShrinkWatchList[i])
+			if len(d.ShrinkWatchList) > 0 {
+				d.ShrinkDB(d.ShrinkWatchList[i])
+			}
 
 			if i%10 == 0 {
 				time.Sleep(time.Second)

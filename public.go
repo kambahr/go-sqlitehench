@@ -594,12 +594,12 @@ func (d *DBAccess) ShrinkDB(dbFilePath string) error {
 	var err error
 
 	if !d.isFileSQLiteDB(dbFilePath) {
-		return nil
+		return errors.New(Err_InvalidDatabaseFileName)
 	}
 
 	_, err = os.Stat(dbFilePath)
 	if os.IsNotExist(err) {
-		return nil
+		return errors.New(Err_DatabaseFileNotExists)
 	}
 
 	db, err = sql.Open(d.driverName, dbFilePath)
@@ -609,7 +609,9 @@ func (d *DBAccess) ShrinkDB(dbFilePath string) error {
 		return nil
 	}
 	if _, err = db.Exec("VACUUM;"); err != nil {
-		db.Close()
+		if db != nil {
+			db.Close()
+		}
 		return err
 	}
 

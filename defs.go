@@ -41,10 +41,11 @@ type LonqQueryArgs struct {
 }
 
 const (
-	Err_DatabaseIsLocked      = "database is locked"
-	Err_FileIsNotDatabase     = "file is not a database"
-	Err_DatabaseFileNotExists = "database file does not exist"
-	Err_NoRowsFound           = "no rows found"
+	Err_DatabaseIsLocked        = "database is locked"
+	Err_FileIsNotDatabase       = "file is not a database"
+	Err_DatabaseFileNotExists   = "database file does not exist"
+	Err_InvalidDatabaseFileName = "invalid database file name"
+	Err_NoRowsFound             = "no rows found"
 )
 
 // convertStringToTime --
