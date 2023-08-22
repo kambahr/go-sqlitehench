@@ -55,14 +55,18 @@ func NewDBAccess(d DBAccess) *DBAccess {
 	}
 
 	if d.ShrinkDatabaseFiles {
+		// Start the watchlist maint to prevent the list
+		// from growing out of proportion.
+		go d.maintWatchList()
+
 		go d.shrinkAllDB()
 	}
 
-	var rmt RemoteSQLite
-	// RemoteSQLite exposes its entire type for
-	// the caller (via Base(), so there is no need
-	// to initialise here.
-	d.Remote = &IRemoteSQLiteHndlr{&rmt}
+	// var rmt RemoteSQLite
+	// // RemoteSQLite exposes its entire type for
+	// // the caller (via Base(), so there is no need
+	// // to initialise here.
+	// d.Remote = &IRemoteSQLiteHndlr{&rmt}
 
 	return &d
 }

@@ -41,6 +41,9 @@ func executeNonQuery(sqlStatement string, db *sql.DB) (int64, error) {
 	var err error
 
 	ctx := context.Background()
+	if ctx == nil {
+		return -1, errors.New("failed to get a background context")
+	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return -1, err

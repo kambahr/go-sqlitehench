@@ -85,7 +85,9 @@ func (d *DBAccess) ExecuteScalare(sqlStatement string, dbFilePath string) (inter
 		// ExecuteScalare is a read operation; but still add
 		// to the list - as some write operations may have taken
 		// a long time... and still good to check on those files to be shrunk.
-		go d.AddDBFileToShrinkWatchList(dbFilePath)
+		if !d.itemExists(dbFilePath) {
+			go d.AddDBFileToShrinkWatchList(dbFilePath)
+		}
 	}
 
 	var db *sql.DB
@@ -132,13 +134,13 @@ func (d *DBAccess) fixQuery(sqlx string) string {
 // ExecuteNonQuery inserts data. It uses a transaction context so that
 // the operation is rolled back on failures and then closes the database.
 // Closing the databases has the following advantages for an SQLite database:
-//    1. It reduces chances of file corruption.
-//    2. It reduces chances of "database locked" errors.
-//    3. It reduces lingering locks, where the database file stays locked
-//       albite closing all database handles.
+//  1. It reduces chances of file corruption.
+//  2. It reduces chances of "database locked" errors.
+//  3. It reduces lingering locks, where the database file stays locked
+//     albite closing all database handles.
 func (d *DBAccess) ExecuteNonQuery(sqlStatement string, dbFilePath string) (int64, error) {
 
-	if d.ShrinkDatabaseFiles {
+	if d.ShrinkDatabaseFiles && !d.itemExists(dbFilePath) {
 		go d.AddDBFileToShrinkWatchList(dbFilePath)
 	}
 
@@ -189,12 +191,32 @@ func (d *DBAccess) ExecuteNonQuery(sqlStatement string, dbFilePath string) (int6
 	return rowsAffected, err
 }
 
+func (d *DBAccess) ExecuteNonQueryNoTxPointToDB(sqlStatement string, db *sql.DB) (int64, error) {
+
+	if len(sqlStatement) > 1000000000 {
+		return -1, errors.New("query length exceeded max length of 1000000000 bytes")
+	}
+
+	result, err := db.Exec(sqlStatement)
+	if err != nil {
+		return -1, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return -1, err
+	}
+
+	return rowsAffected, nil
+}
+
 // ExecuteNonQueryNoTx uses no transaction context to insert data.
 func (d *DBAccess) ExecuteNonQueryNoTx(sqlStatement string, dbFilePath string) (int64, error) {
 
-	if d.ShrinkDatabaseFiles {
+	if d.ShrinkDatabaseFiles && !d.itemExists(dbFilePath) {
 		go d.AddDBFileToShrinkWatchList(dbFilePath)
 	}
+
 	var db *sql.DB
 	var err error
 
@@ -332,7 +354,7 @@ func (dc *DBAccess) BulkInsert(dtSrc *collc.Table, dbFilePath string /*fast bool
 
 	// Make a new instance for this.
 	var pragma []string = []string{
-		"PRAGMA journal_mode = WALL;",
+		"PRAGMA journal_mode = MEMORY;",
 		"PRAGMA synchronous = OFF;",
 	}
 
@@ -414,7 +436,7 @@ func (dc *DBAccess) CloneDatabase(srcFilePath string, destFilePath string, notif
 
 	// Make a new instance for this.
 	var prag []string = []string{
-		"PRAGMA journal_mode = WALL;",
+		//"PRAGMA journal_mode = MEMORY;",
 		"PRAGMA synchronous = OFF;",
 	}
 
@@ -547,7 +569,9 @@ func (d *DBAccess) GetDataMap(sqlQuery string, dbFilePath string) ([]map[string]
 		// Read operation; but still add to the list - as some
 		// write operations may have taken a long time... and still
 		// good to check on those files to be shrunk.
-		go d.AddDBFileToShrinkWatchList(dbFilePath)
+		if !d.itemExists(dbFilePath) {
+			go d.AddDBFileToShrinkWatchList(dbFilePath)
+		}
 	}
 
 	var db *sql.DB
@@ -593,13 +617,17 @@ func (d *DBAccess) ShrinkDB(dbFilePath string) error {
 	var db *sql.DB
 	var err error
 
+	if dbFilePath == "" {
+		return nil
+	}
+
 	if !d.isFileSQLiteDB(dbFilePath) {
-		return errors.New(Err_InvalidDatabaseFileName)
+		return nil
 	}
 
 	_, err = os.Stat(dbFilePath)
 	if os.IsNotExist(err) {
-		return errors.New(Err_DatabaseFileNotExists)
+		return nil
 	}
 
 	db, err = sql.Open(d.driverName, dbFilePath)
@@ -609,9 +637,7 @@ func (d *DBAccess) ShrinkDB(dbFilePath string) error {
 		return nil
 	}
 	if _, err = db.Exec("VACUUM;"); err != nil {
-		if db != nil {
-			db.Close()
-		}
+		db.Close()
 		return err
 	}
 
@@ -654,69 +680,25 @@ func (d *DBAccess) EncryptDatabase(dbFilePath string, pwdPhrase string) error {
 func (d *DBAccess) DecryptDatabase(dbFilePath string, pwdPhrase string) error {
 	return DecryptFile(dbFilePath, pwdPhrase)
 }
-func (d *DBAccess) GetColumnNames(dbFilePath string, tblName string) ([]string, error) {
 
+// GetColumnNames gets the column names of a table.
+func (d *DBAccess) GetColumnNames(dbFilePath string, tblName string) ([]string, error) {
 	var col []string
 
-	sqlx := fmt.Sprintf("SELECT sql FROM sqlite_master WHERE lower(name)='%s';", strings.ToLower(tblName))
-	m, err := d.ExecuteScalare(sqlx, dbFilePath)
+	sqlx := fmt.Sprintf("PRAGMA table_info(%s);", strings.ToLower(tblName))
+	t, err := d.GetDataTable(sqlx, dbFilePath)
 	if err != nil {
 		return col, err
 	}
-	if m == nil {
+	if t == nil {
 		return col, nil
 	}
-	tsql := m.(string)
 
-	v := strings.Split(tsql, "\n")
-	cnt := len(v) - 1
+	c := t.Cols.Get()
 
-	if len(v) == 1 {
-		v = strings.Split(tsql, ",")
-		cnt = len(v)
+	for i := 0; i < t.Cols.Count(); i++ {
+		col = append(col, c[i].Name)
 	}
 
-	for i := 1; i < cnt; i++ {
-		v[i] = strings.TrimLeft(v[i], " ")
-
-		if strings.Contains(v[i], "PRIMARY KEY") && strings.Contains(v[i], "(") {
-			continue
-		}
-
-		// exclude comments
-		if strings.Contains(v[i], "/*") {
-			for {
-				i++
-				if i >= cnt {
-					break
-				}
-				v[i] = strings.TrimLeft(v[i], " ")
-				if strings.Contains(v[i], "*/") {
-					i++
-					break
-				}
-			}
-		}
-		if i >= cnt {
-			break
-		}
-		v2 := strings.Split(v[i], " ")
-		v3 := strings.Split(v2[0], "\t")
-		s := ""
-		for j := 0; j < len(v3); j++ {
-			if v3[j] != "" {
-				s = v3[j]
-				break
-			}
-		}
-		if strings.HasPrefix(s, "[") {
-			s = s[1 : len(s)-1]
-		}
-		s = strings.ReplaceAll(s, "`", "")
-		s = strings.ReplaceAll(s, `"`, "")
-		s = strings.ReplaceAll(s, `)`, "")
-		col = append(col, s)
-	}
-
-	return col, err
+	return col, nil
 }

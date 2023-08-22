@@ -752,8 +752,23 @@ func (d *DBAccess) getDataTable(sqlQuery string, dbFilePath string, tag string) 
 	if db, err = d.GetDB(dbFilePath); err != nil {
 		return nil, err
 	}
+	tableName := ""
+	sqlQuery = strings.TrimSpace(sqlQuery)
+	sqlQueryLower := strings.ToLower(sqlQuery)
+	if strings.HasPrefix(sqlQueryLower, "pragma ") {
+		sqlQueryLower = strings.ReplaceAll(sqlQueryLower, "  ", " ")
+		sqlQueryLower = strings.TrimSuffix(sqlQueryLower, ";")
+		sqlQueryLower = strings.ReplaceAll(sqlQueryLower, "pragma", "")
+		sqlQueryLower = strings.ReplaceAll(sqlQueryLower, "table_info", "")
+		sqlQueryLower = strings.TrimSpace(sqlQueryLower)
+		sqlQueryLower = strings.TrimPrefix(sqlQueryLower, "(")
+		sqlQueryLower = strings.TrimSuffix(sqlQueryLower, ")")
+		tableName = strings.TrimSpace(sqlQueryLower)
+		sqlQuery = fmt.Sprintf("select * from %s limit 0", tableName)
+	} else {
+		tableName = d.getTableNameFromSQLQuery(sqlQuery)
+	}
 
-	tableName := d.getTableNameFromSQLQuery(sqlQuery)
 	if tableName == "" {
 		return nil, errors.New("malfomred query; table-name not found")
 	}

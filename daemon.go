@@ -13,12 +13,9 @@ import (
 // will be monitored for shrinking.
 func (d *DBAccess) shrinkAllDB() {
 
-	// Start the watchlist maint to prevent the list
-	// from growing out of proportion.
-	go d.maintWatchList()
-
 	for {
 		for i := 0; i < len(d.ShrinkWatchList); i++ {
+
 			if len(d.ShrinkWatchList) == 0 || i >= len(d.ShrinkWatchList) {
 				break
 			}
@@ -27,17 +24,18 @@ func (d *DBAccess) shrinkAllDB() {
 				break
 			}
 
-			// Shrink the database.
-			if len(d.ShrinkWatchList) > 0 {
-				d.ShrinkDB(d.ShrinkWatchList[i])
+			if len(d.ShrinkWatchList) == 0 || i >= len(d.ShrinkWatchList) {
+				break
 			}
+			// Shrink the database.
+			d.ShrinkDB(d.ShrinkWatchList[i])
 
 			if i%10 == 0 {
 				time.Sleep(time.Second)
 			}
 		}
 
-		time.Sleep(15 * time.Second)
+		time.Sleep(19 * time.Second)
 	}
 }
 
@@ -77,6 +75,6 @@ func (d *DBAccess) maintWatchList() {
 				break
 			}
 		}
-		time.Sleep(time.Minute)
+		time.Sleep(37 * time.Second)
 	}
 }

@@ -14,7 +14,7 @@ type DBAccess struct {
 	MaxOpenConns        uint
 	PRAGMA              []string
 	ShrinkDatabaseFiles bool
-	Remote              IRemoteSQLite
+	//Remote              IRemoteSQLite
 
 	// ShrinkWatchList keeps a list of sqlite database
 	// file paths that are to be shrinked in a set internval.
@@ -41,11 +41,10 @@ type LonqQueryArgs struct {
 }
 
 const (
-	Err_DatabaseIsLocked        = "database is locked"
-	Err_FileIsNotDatabase       = "file is not a database"
-	Err_DatabaseFileNotExists   = "database file does not exist"
-	Err_InvalidDatabaseFileName = "invalid database file name"
-	Err_NoRowsFound             = "no rows found"
+	Err_DatabaseIsLocked      = "database is locked"
+	Err_FileIsNotDatabase     = "file is not a database"
+	Err_DatabaseFileNotExists = "database file does not exist"
+	Err_NoRowsFound           = "no rows found"
 )
 
 // convertStringToTime --

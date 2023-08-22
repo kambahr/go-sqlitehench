@@ -13,12 +13,6 @@ import (
 func (d *DBAccess) itemExists(dbFilePath string) bool {
 
 	for i := 0; i < len(d.ShrinkWatchList); i++ {
-		// if callers are running go routines, the
-		// size of ShrinkWatchList may change rapidly
-		// (while this loop is running):
-		if len(d.ShrinkWatchList) == 0 {
-			break
-		}
 		if d.ShrinkWatchList[i] == dbFilePath {
 			return true
 		}
